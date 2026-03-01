@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORACLE: บั้งไฟทะลวงจันทร์ (Moon Race)</title>
+    <!-- โหลด MQTT.js ผ่าน CDN -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
+
+        :root {
+            --primary: #58a6ff;
+            --orange: #ff7b00;
+            --bg: #0d1117;
+            --surface: rgba(22, 27, 34, 0.85);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #e6edf3;
+            --muted: #8b949e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans Thai', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            /* Starry background effect */
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                radial-gradient(circle at 85% 30%, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                radial-gradient(circle at 70% 90%, rgba(255, 255, 255, 0.03) 2px, transparent 2px),
+                radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.06) 1.5px, transparent 1.5px);
+            background-size: 100px 100px;
+        }
+
+        /* ----- JOIN SCREEN ----- */
+        #join-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .join-card {
+            background: var(--surface);
+            border: 1px solid var(--primary);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 0 30px rgba(88, 166, 255, 0.2);
+        }
+
+        .join-card h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ff7b00, #ffcc00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .join-card p {
+            color: var(--muted);
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #010409;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            outline: none;
+            text-align: center;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(88, 166, 255, 0.3);
+        }
+
+        .btn-join {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, var(--orange), #ff4500);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-join:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 123, 0, 0.4);
+        }
+
+        /* ----- MAIN GAME UI ----- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(88, 166, 255, 0.5);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff3300;
+            box-shadow: 0 0 8px #ff3300;
+        }
+
+        .dot.connected {
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            padding: 20px 40px;
+            gap: 30px;
+        }
+
+        /* --- RACE TRACK AREA --- */
+        .race-area {
+            flex: 3;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .instruction {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .instruction kbd {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-family: monospace;
+            color: var(--primary);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Finish Line / Moon */
+        .finish-line-marker {
+            position: absolute;
+            right: 40px;
+            top: 60px;
+            bottom: 20px;
+            width: 4px;
+            background: repeating-linear-gradient(0deg,
+                    #fff,
+                    #fff 10px,
+                    #000 10px,
+                    #000 20px);
+            z-index: 1;
+        }
+
+        .moon {
+            position: absolute;
+            right: 15px;
+            top: 20px;
+            font-size: 3rem;
+            z-index: 2;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Individual Track */
+        .track {
+            position: relative;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            /* Track line */
+            border-bottom: 2px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .track-name {
+            position: absolute;
+            left: 15px;
+            top: -18px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--muted);
+        }
+
+        .track.is-local .track-name {
+            color: var(--primary);
+        }
+
+        .bangfai-wrapper {
+            position: absolute;
+            left: 0%;
+            transition: left 0.1s linear;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .bangfai-emoji {
+            font-size: 2.2rem;
+            filter: drop-shadow(0 0 10px rgba(255, 123, 0, 0.6));
+            transform: rotate(45deg);
+            /* Point it forward if normally vertical */
+        }
+
+        /* Flame effect when moving */
+        .flame {
+            font-size: 1.5rem;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: opacity 0.1s;
+        }
+
+        .bangfai-wrapper.moving .flame {
+            opacity: 1;
+            animation: flicker 0.1s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0% {
+                transform: scale(1) translateX(10px);
+            }
+
+            100% {
+                transform: scale(1.3) translateX(12px);
+            }
+        }
+
+        .time-display {
+            position: absolute;
+            right: 50px;
+            font-size: 0.9rem;
+            color: #00ff00;
+            font-weight: bold;
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2px 8px;
+            border-radius: 4px;
+            z-index: 20;
+        }
+
+        /* --- LEADERBOARD (Hall of Fame) --- */
+        .leaderboard {
+            flex: 1;
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+        }
+
+        .leaderboard h2 {
+            font-size: 1.2rem;
+            color: #ffcc00;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .score-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .score-item .rank {
+            color: var(--muted);
+            width: 25px;
+            font-weight: bold;
+        }
+
+        .score-item .name {
+            flex: 1;
+            font-weight: bold;
+        }
+
+        .score-item .time {
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        /* Top 3 styles */
+        .score-item.rank-1 .rank {
+            color: #ffd700;
+        }
+
+        .score-item.rank-2 .rank {
+            color: #c0c0c0;
+        }
+
+        .score-item.rank-3 .rank {
+            color: #cd7f32;
+        }
+
+        /* End Game Overlay */
+        #end-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            flex-direction: column;
+        }
+
+        #end-screen h1 {
+            font-size: 3rem;
+            color: #00ff00;
+            margin-bottom: 10px;
+        }
+
+        #end-screen p {
+            font-size: 1.5rem;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .btn-restart {
+            padding: 12px 30px;
+            background: var(--primary);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .btn-restart:hover {
+            background: #79b8ff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- JOIN SCREEN -->
+    <div id="join-screen">
+        <div class="join-card">
+            <h1>🌕 บั้งไฟทะลวงจันทร์</h1>
+            <p>แข่งบั้งไฟอวกาศแบบ Real-time ด้วย MQTT</p>
+            <div class="input-group">
+                <input type="text" id="player-name" placeholder="ระบุชื่อ Oracle ของคุณ (เช่น Nat, Arthur)"
+                    maxlength="15" autocomplete="off">
+            </div>
+            <button class="btn-join" id="btn-join" onclick="joinGame()">🚀 เตรียมจุดบั้งไฟ</button>
+        </div>
+    </div>
+
+    <!-- END SCREEN -->
+    <div id="end-screen">
+        <h1 id="end-title">ถึงดวงจันทร์แล้ว!</h1>
+        <p>เวลาของคุณ: <span id="end-time">0.00</span> วินาที</p>
+        <button class="btn-restart" onclick="resetGame()">แข่งใหม่อีกครั้ง</button>
+    </div>
+
+    <!-- MAIN UI -->
+    <header>
+        <div class="title">🚀 บั้งไฟแข่งพุ่งจนถึงดวงจันทร์ (Moon Race)</div>
+        <div class="status">
+            <div class="status-item">
+                <span id="player-display-name">Guest</span>
+            </div>
+            <div class="status-item">
+                <div class="dot" id="mqtt-dot"></div>
+                <span id="mqtt-status">สถานะ: รอการเชื่อมต่อ</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- RACE AREA -->
+        <div class="race-area" id="race-area">
+            <div class="moon">🌕</div>
+            <div class="finish-line-marker"></div>
+
+            <div class="instruction">
+                กด <kbd>Spacebar</kbd> รัวๆ เพื่อจุดเครื่องยนต์บั้งไฟให้ทะยานไปข้างหน้า!
+            </div>
+
+            <!-- Tracks will be injected here -->
+        </div>
+
+        <!-- LEADERBOARD -->
+        <div class="leaderboard">
+            <h2>🏆 Hall of Fame (Top Scores)</h2>
+            <div class="score-list" id="score-list">
+                <!-- Scores injected here -->
+                <div style="text-align: center; color: var(--muted); padding: 20px;">กำลังโหลดข้อมูล...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME CONFIG & STATE ---
+        const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt'; // Public Free Broker for testing
+        const TOPIC_UPDATE = 'oracle/bangfai/race/update';
+        const TOPIC_SCORES = 'oracle/bangfai/scores/'; // + playerName
+
+        let client = null;
+        let localPlayer = {
+            id: 'p_' + Math.random().toString(36).substr(2, 6),
+            name: '',
+            progress: 0, // 0 to 100
+            startTime: 0,
+            endTime: 0,
+            finished: false,
+            bestTime: Infinity
+        };
+
+        let players = {}; // stores progress of everyone: { id: { name, progress, finished, finalTime } }
+        let hallOfFame = {}; // stores best times from retained messages: { name: time }
+
+        let lastKeyPressTime = 0;
+        let syncInterval = null;
+
+        // --- DOM ELEMENTS ---
+        const joinScreen = document.getElementById('join-screen');
+        const nameInput = document.getElementById('player-name');
+        const raceArea = document.getElementById('race-area');
+        const mqttStatus = document.getElementById('mqtt-status');
+        const mqttDot = document.getElementById('mqtt-dot');
+        const scoreList = document.getElementById('score-list');
+        const endScreen = document.getElementById('end-screen');
+        const endTimeDisplay = document.getElementById('end-time');
+
+        // --- INITIALIZATION ---
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinGame();
+        });
+
+        // Focus input on load
+        window.onload = () => nameInput.focus();
+
+        function joinGame() {
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert("กรุณากรอกชื่อ Oracle ก่อนเริ่มแข่งขัน");
+                return;
+            }
+            localPlayer.name = name;
+            document.getElementById('player-display-name').innerText = name;
+            joinScreen.style.display = 'none';
+
+            initMQTT();
+            initLocalTrack();
+
+            // Wait for first keypress to start timer
+            window.addEventListener('keydown', handleInput);
+        }
+
+        // --- MQTT LOGIC ---
+        function initMQTT() {
+            mqttStatus.innerText = "กำลังเชื่อมต่อ Broker...";
+
+            // Connect to broker
+            client = mqtt.connect(MQTT_BROKER, {
+                clientId: 'oracle_bangfai_' + Math.random().toString(16).substr(2, 8)
+            });
+
+            client.on('connect', () => {
+                mqttStatus.innerText = "ออนไลน์ (Connected)";
+                mqttDot.classList.add('connected');
+
+                // Subscribe to race updates
+                client.subscribe(TOPIC_UPDATE);
+                // Subscribe to all retained scores for Hall of Fame
+                client.subscribe(TOPIC_SCORES + '+');
+
+                // Broadcast presence (0% progress)
+                broadcastProgress();
+            });
+
+            client.on('message', (topic, message) => {
+                if (topic === TOPIC_UPDATE) {
+                    try {
+                        const data = JSON.parse(message.toString());
+                        // Ignore own messages
+                        if (data.id !== localPlayer.id) {
+                            handleRemoteUpdate(data);
+                        }
+                    } catch (e) { console.error("Parse error", e); }
+                }
+                else if (topic.startsWith(TOPIC_SCORES)) {
+                    // Retained score parsing
+                    const name = topic.split('/').pop();
+                    const score = parseFloat(message.toString());
+                    if (!isNaN(score)) {
+                        hallOfFame[name] = score;
+                        renderLeaderboard();
+
+                        // If it's my own historical score, save it
+                        if (name === localPlayer.name && score < localPlayer.bestTime) {
+                            localPlayer.bestTime = score;
+                        }
+                    }
+                }
+            });
+
+            client.on('error', (err) => {
+                console.error("MQTT Error:", err);
+                mqttStatus.innerText = "เชื่อมต่อผิดพลาด";
+                mqttDot.classList.remove('connected');
+            });
+
+            // Start routine sync (every 100ms) to smooth movement for others
+            syncInterval = setInterval(() => {
+                if (!localPlayer.finished) broadcastProgress();
+            }, 100);
+        }
+
+        function broadcastProgress() {
+            if (!client || !client.connected) return;
+
+            const payload = {
+                id: localPlayer.id,
+                name: localPlayer.name,
+                progress: parseFloat(localPlayer.progress.toFixed(2)),
+                finished: localPlayer.finished,
+                finalTime: localPlayer.endTime > 0 ? ((localPlayer.endTime - localPlayer.startTime) / 1000).toFixed(2) : null
+            };
+
+            client.publish(TOPIC_UPDATE, JSON.stringify(payload), { qos: 0 });
+        }
+
+        function submitBestTime(timeSeconds) {
+            if (!client || !client.connected) return;
+
+            // Only publish to retain if it's strictly better than historical
+            if (timeSeconds < localPlayer.bestTime) {
+                localPlayer.bestTime = timeSeconds;
+                client.publish(TOPIC_SCORES + localPlayer.name, timeSeconds.toString(), { qos: 1, retain: true });
+                console.log(`New Best Time Saved: ${timeSeconds}s`);
+            }
+        }
+
+        // --- GAME MECHANICS ---
+        function handleInput(e) {
+            if (e.code === 'Space') {
+                e.preventDefault(); // prevent scrolling
+
+                if (localPlayer.finished) return;
+
+                // Start timer on first press
+                if (localPlayer.startTime === 0 && localPlayer.progress === 0) {
+                    localPlayer.startTime = Date.now();
+                }
+
+                // Increment progress (approx 1% to 1.5% per mash depending on speed)
+                // Let's say 80 presses to finish
+                localPlayer.progress += 1.25;
+
+                // Add visual flame effect trigger
+                lastKeyPressTime = Date.now();
+                const wrapper = document.getElementById(`bangfai-${localPlayer.id}`);
+                if (wrapper) {
+                    wrapper.classList.add('moving');
+                    setTimeout(() => {
+                        if (Date.now() - lastKeyPressTime > 150) {
+                            wrapper.classList.remove('moving');
+                        }
+                    }, 150);
+                }
+
+                checkWinCondition();
+                updateLocalTrackView();
+            }
+        }
+
+        function checkWinCondition() {
+            if (localPlayer.progress >= 100) {
+                localPlayer.progress = 100;
+                localPlayer.finished = true;
+                localPlayer.endTime = Date.now();
+
+                const finalSeconds = ((localPlayer.endTime - localPlayer.startTime) / 1000).toFixed(2);
+
+                // Show completion
+                endTimeDisplay.innerText = finalSeconds;
+                endScreen.style.display = 'flex';
+
+                // Final broadcast
+                broadcastProgress();
+
+                // Submit to Hall of Fame if best
+                submitBestTime(parseFloat(finalSeconds));
+
+                // Stop syncing periodically
+                clearInterval(syncInterval);
+            }
+        }
+
+        function resetGame() {
+            localPlayer.progress = 0;
+            localPlayer.startTime = 0;
+            localPlayer.endTime = 0;
+            localPlayer.finished = false;
+
+            endScreen.style.display = 'none';
+
+            // Hide local time flag
+            const timeUI = document.getElementById(`time-${localPlayer.id}`);
+            if (timeUI) timeUI.style.display = 'none';
+
+            updateLocalTrackView();
+
+            // Re-start sync
+            clearInterval(syncInterval);
+            syncInterval = setInterval(() => {
+                if (!localPlayer.finished) broadcastProgress();
+            }, 100);
+
+            broadcastProgress();
+        }
+
+        // --- RENDERING VIEWS ---
+        function initLocalTrack() {
+            createTrackElement(localPlayer.id, localPlayer.name, true);
+        }
+
+        function createTrackElement(id, name, isLocal) {
+            if (document.getElementById(`track-${id}`)) return; // Already exists
+
+            const trackHTML = `
+                <div class="track ${isLocal ? 'is-local' : ''}" id="track-${id}">
+                    <div class="track-name">${name}</div>
+                    <div class="bangfai-wrapper" id="bangfai-${id}">
+                        <span class="flame">🔥</span>
+                        <span class="bangfai-emoji">🚀</span>
+                    </div>
+                    <div class="time-display" id="time-${id}"></div>
+                </div>
+            `;
+
+            // Local player is always at the top
+            if (isLocal) {
+                raceArea.insertAdjacentHTML('afterbegin', trackHTML);
+            } else {
+                raceArea.insertAdjacentHTML('beforeend', trackHTML);
+            }
+        }
+
+        function updateLocalTrackView() {
+            const wrapper = document.getElementById(`bangfai-${localPlayer.id}`);
+            if (wrapper) {
+                // Calculate visual percentage (leaving room for emoji width at the end)
+                const visualPercent = Math.min(localPlayer.progress * 0.9, 90);
+                wrapper.style.left = `${visualPercent}%`;
+
+                if (localPlayer.finished) {
+                    const timeUI = document.getElementById(`time-${localPlayer.id}`);
+                    timeUI.innerText = ((localPlayer.endTime - localPlayer.startTime) / 1000).toFixed(2) + 's';
+                    timeUI.style.display = 'block';
+                }
+            }
+        }
+
+        function handleRemoteUpdate(data) {
+            // Track management
+            if (!players[data.id]) {
+                players[data.id] = data;
+                createTrackElement(data.id, data.name, false);
+            }
+            players[data.id] = data;
+
+            // Visual update
+            const wrapper = document.getElementById(`bangfai-${data.id}`);
+            if (wrapper) {
+                const visualPercent = Math.min(data.progress * 0.9, 90);
+                wrapper.style.left = `${visualPercent}%`;
+
+                // Show completion time flag if they finished
+                if (data.finished && data.finalTime) {
+                    const timeUI = document.getElementById(`time-${data.id}`);
+                    if (timeUI) {
+                        timeUI.innerText = data.finalTime + 's';
+                        timeUI.style.display = 'block';
+                    }
+                }
+            }
+
+            // Clean up old inactive players logic could go here, but omitted for simplicity
+        }
+
+        function renderLeaderboard() {
+            // Convert dictionary to array and sort
+            const scoresArray = Object.keys(hallOfFame).map(name => ({
+                name: name,
+                time: hallOfFame[name]
+            })).sort((a, b) => a.time - b.time); // Ascending (lowest time wins)
+
+            scoreList.innerHTML = '';
+
+            if (scoresArray.length === 0) {
+                scoreList.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 20px;">ยังไม่มีสถิติ</div>';
+                return;
+            }
+
+            scoresArray.forEach((item, index) => {
+                const rank = index + 1;
+                const html = `
+                    <div class="score-item rank-${rank}">
+                        <div class="rank">#${rank}</div>
+                        <div class="name">${item.name}</div>
+                        <div class="time">${item.time.toFixed(2)}s</div>
+                    </div>
+                `;
+                scoreList.insertAdjacentHTML('beforeend', html);
+            });
+        }
+    </script>
+</body>
+
+</html>
