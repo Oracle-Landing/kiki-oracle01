@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Racing - Kiki</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+Thai:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <!-- Paho MQTT Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"
+        type="text/javascript"></script>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --secondary: #00ccff;
+            --bg-color: #0d1117;
+            --text-main: #c9d1d9;
+            --glass-bg: rgba(22, 27, 34, 0.8);
+            --glass-border: rgba(0, 255, 136, 0.2);
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-thai: 'Noto Sans Thai', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-thai);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-main);
+            opacity: 0.7;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* Lobby Section */
+        #lobby {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-family: var(--font-thai);
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Game Section */
+        #gameArea {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .track-container {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+        }
+
+        .track {
+            height: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .rocket {
+            position: absolute;
+            left: 0%;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+            transition: left 0.1s linear;
+            z-index: 10;
+        }
+
+        .finish-line {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 10px;
+            background: repeating-linear-gradient(45deg,
+                    #fff,
+                    #fff 5px,
+                    #000 5px,
+                    #000 10px);
+        }
+
+        .instruction {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin: 20px 0;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                opacity: 0.5;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Hall of Fame */
+        #hallOfFame {
+            margin-top: 30px;
+            background: var(--glass-bg);
+            border: 1px solid gold;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .hof-title {
+            color: gold;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .hof-record {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--primary);
+            color: #000;
+            text-align: center;
+            border-radius: 2px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: bold;
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein {
+            from {
+                bottom: 0;
+                opacity: 0;
+            }
+
+            to {
+                bottom: 30px;
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeout {
+            from {
+                bottom: 30px;
+                opacity: 1;
+            }
+
+            to {
+                bottom: 0;
+                opacity: 0;
+            }
+        }
+
+        .nav-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: var(--primary);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            font-size: 14px;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="nav-link">← Back to Oracle</a>
+
+    <h1>🚀 Spacebar Racing</h1>
+    <p class="subtitle">Online Multiplayer via MQTT</p>
+
+    <!-- Lobby / Start Screen -->
+    <div id="lobby">
+        <h2>เข้าร่วมการแข่งขัน</h2>
+        <p>ป้อนชื่อ Oracle ของคุณ</p>
+        <input type="text" id="playerName" placeholder="เช่น Kiki, Phukhao..." maxlength="15">
+        <button id="joinBtn">เริ่มเกม</button>
+        <p style="font-size: 12px; color: gray; margin-top: 15px;">*ใช้ MQTT wss://broker.emqx.io</p>
+    </div>
+
+    <!-- Game Arena -->
+    <div id="gameArea">
+        <div class="instruction">💥 กดปุ่ม <b>SPACEBAR</b> รัวๆ เพื่อพุ่งไปข้างหน้า! 💥</div>
+
+        <!-- Tracks will be injected here -->
+        <div id="tracksContainer"></div>
+    </div>
+
+    <!-- Hall of Fame -->
+    <div id="hallOfFame">
+        <div class="hof-title">🏆 Hall of Fame (Fastest Time)</div>
+        <div class="hof-record" id="hofData">Loading...</div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        // --- Game Variables ---
+        let mqttClient;
+        const brokerUrl = "broker.emqx.io";
+        const brokerPort = 8084;
+        const clientId = "kiki_racer_" + Math.random().toString(16).substr(2, 8);
+
+        const TOPIC_BASE = "kiki-oracle/race/";
+        const TOPIC_POS = TOPIC_BASE + "pos/"; // + playerName
+        const TOPIC_HOF = TOPIC_BASE + "hof";  // Retained best time
+
+        let myName = "";
+        let myProgress = 0;
+        let isRacing = false;
+        let startTime = 0;
+
+        // Track state of all players: { "Name": { progress: 0, lastSeen: timestamp, element: DOMNode } }
+        const players = {};
+
+        // --- DOM Elements ---
+        const lobbyEl = document.getElementById('lobby');
+        const gameAreaEl = document.getElementById('gameArea');
+        const playerNameInput = document.getElementById('playerName');
+        const joinBtn = document.getElementById('joinBtn');
+        const tracksContainer = document.getElementById('tracksContainer');
+        const hofData = document.getElementById('hofData');
+        const toastEl = document.getElementById('toast');
+
+        // --- Init MQTT ---
+        function connectMQTT() {
+            mqttClient = new Paho.MQTT.Client(brokerUrl, brokerPort, clientId);
+
+            mqttClient.onConnectionLost = (responseObject) => {
+                showToast("Connection Lost: " + responseObject.errorMessage);
+                setTimeout(connectMQTT, 3000); // Reconnect
+            };
+
+            mqttClient.onMessageArrived = (message) => {
+                const topic = message.destinationName;
+                const payload = message.payloadString;
+
+                if (topic === TOPIC_HOF) {
+                    handleHofMessage(payload);
+                } else if (topic.startsWith(TOPIC_POS)) {
+                    const pName = topic.replace(TOPIC_POS, "");
+                    handlePlayerProgress(pName, parseFloat(payload));
+                }
+            };
+
+            const options = {
+                useSSL: true,
+                onSuccess: () => {
+                    console.log("MQTT Connected");
+                    // Subscribe to position updates and Hall of Fame
+                    mqttClient.subscribe(TOPIC_POS + "+");
+                    mqttClient.subscribe(TOPIC_HOF);
+                },
+                onFailure: (err) => {
+                    console.error("MQTT Connect failed", err);
+                    showToast("Failed to connect to game server");
+                }
+            };
+
+            mqttClient.connect(options);
+        }
+
+        // --- Logic ---
+        function startGame() {
+            const name = playerNameInput.value.trim();
+            if (!name) {
+                showToast("กรุณาใส่ชื่อ!");
+                return;
+            }
+            if (name.length > 15) {
+                showToast("ชื่อยาวเกินไป!");
+                return;
+            }
+
+            myName = name;
+            myProgress = 0;
+            isRacing = true;
+            startTime = Date.now();
+
+            lobbyEl.style.display = "none";
+            gameAreaEl.style.display = "flex";
+
+            // Initialize my track
+            updateOrCreateTrack(myName, 0);
+
+            // Focus window so spacebar works immediately
+            window.focus();
+
+            // Setup Spacebar listener
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        function handleKeyPress(e) {
+            // Spacebar
+            if (e.code === 'Space' && isRacing) {
+                e.preventDefault(); // Prevent page scroll
+                myProgress += 2; // 2% per click
+                if (myProgress >= 100) {
+                    myProgress = 100;
+                    finishRace();
+                }
+
+                updateOrCreateTrack(myName, myProgress);
+                publishProgress();
+            }
+        }
+
+        function publishProgress() {
+            if (mqttClient && mqttClient.isConnected()) {
+                const message = new Paho.MQTT.Message(myProgress.toString());
+                message.destinationName = TOPIC_POS + myName;
+                message.qos = 0;
+                mqttClient.send(message);
+            }
+        }
+
+        function finishRace() {
+            isRacing = false;
+            document.removeEventListener('keydown', handleKeyPress);
+
+            const endTime = Date.now();
+            const timeSeconds = ((endTime - startTime) / 1000).toFixed(2);
+            showToast(`🎉 เข้าเส้นชัย! เวลาของคุณ: ${timeSeconds} วิ`);
+
+            // Check if we beat HOF (We let the client attempt to publish, a real app would have server validation, but we keep it simple here)
+            checkAndPublishHOF(timeSeconds);
+
+            // Reset button
+            setTimeout(() => {
+                const retryBtn = document.createElement('button');
+                retryBtn.textContent = "แข่งใหม่";
+                retryBtn.onclick = () => {
+                    myProgress = 0;
+                    startTime = Date.now();
+                    isRacing = true;
+                    updateOrCreateTrack(myName, 0);
+                    retryBtn.remove();
+                    document.addEventListener('keydown', handleKeyPress);
+                };
+                gameAreaEl.appendChild(retryBtn);
+            }, 2000);
+        }
+
+        let currentHofTime = 999.99;
+
+        function checkAndPublishHOF(myTime) {
+            const timeNum = parseFloat(myTime);
+            if (timeNum < currentHofTime) {
+                if (mqttClient && mqttClient.isConnected()) {
+                    const hofMsg = JSON.stringify({ name: myName, time: timeNum });
+                    const message = new Paho.MQTT.Message(hofMsg);
+                    message.destinationName = TOPIC_HOF;
+                    message.retained = true; // IMPORTANT: Retain message so new players see it
+                    message.qos = 1;
+                    mqttClient.send(message);
+                    showToast("🏆 ทำลายสถิติ Hall of Fame!");
+                }
+            }
+        }
+
+        function handleHofMessage(payload) {
+            try {
+                const data = JSON.parse(payload);
+                if (data.name && data.time) {
+                    currentHofTime = parseFloat(data.time);
+                    hofData.innerHTML = `<span style="color:var(--primary)">${data.name}</span><br>${data.time} วินาที`;
+                }
+            } catch (e) {
+                console.error("Parse HOF error", e);
+            }
+        }
+
+        function handlePlayerProgress(name, progress) {
+            // Ignore own messages bouncing back
+            if (name === myName && isRacing) return;
+
+            updateOrCreateTrack(name, progress);
+        }
+
+        function updateOrCreateTrack(name, progress) {
+            let pState = players[name];
+
+            if (!pState) {
+                // Create new track UI
+                const container = document.createElement('div');
+                container.className = 'track-container';
+
+                const info = document.createElement('div');
+                info.className = 'player-info';
+                info.innerHTML = `<span>🏎️ ${name}</span><span id="pct-${name}">0%</span>`;
+
+                const track = document.createElement('div');
+                track.className = 'track';
+
+                const rocket = document.createElement('div');
+                rocket.className = 'rocket';
+                rocket.innerText = '🚀';
+                rocket.id = `rocket-${name}`;
+
+                const finishLine = document.createElement('div');
+                finishLine.className = 'finish-line';
+
+                track.appendChild(rocket);
+                track.appendChild(finishLine);
+                container.appendChild(info);
+                container.appendChild(track);
+
+                tracksContainer.appendChild(container);
+
+                pState = {
+                    elementRocket: rocket,
+                    elementPct: document.getElementById(`pct-${name}`)
+                };
+                players[name] = pState;
+            }
+
+            // Update UI
+            pState.elementRocket.style.left = `calc(${progress}% - 24px)`; // adjust for emoji width
+            pState.elementPct.innerText = `${Math.floor(progress)}%`;
+
+            // Cleanup old players (Optional: if they haven't moved in 30s)
+            // Simplified for this demo.
+        }
+
+        function showToast(msg) {
+            toastEl.innerText = msg;
+            toastEl.className = "show";
+            setTimeout(() => { toastEl.className = toastEl.className.replace("show", ""); }, 3000);
+        }
+
+        // --- Event Listeners ---
+        joinBtn.addEventListener('click', startGame);
+        playerNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startGame();
+        });
+
+        // Start connection on load
+        connectMQTT();
+
+        // Initial HOF State
+        if (hofData.innerText === "Loading..." && currentHofTime === 999.99) {
+            setTimeout(() => {
+                if (hofData.innerText === "Loading...") {
+                    hofData.innerText = "ยังไม่มีสถิติ (รอผู้ท้าชิง!)";
+                }
+            }, 3000); // 3 sec timeout if no retained message
+        }
+
+    </script>
+</body>
+
+</html>
