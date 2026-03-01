@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Landing Page</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+Thai:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #58a6ff;
+            --secondary: #c084fc;
+            --bg-color: #0d1117;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --glass-bg: rgba(22, 27, 34, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-thai: 'Noto Sans Thai', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-thai);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism utility */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Typography */
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Canvas Background */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Layout Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Section Spacing */
+        section {
+            padding: 6rem 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+        }
+
+        .hero-emoji {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        .hero .subtitle {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        .quote-box {
+            font-style: italic;
+            border-left: 4px solid var(--primary);
+            padding-left: 1rem;
+            margin: 2rem auto;
+            max-width: 600px;
+            color: #fff;
+        }
+
+        /* Stats Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .stat-card {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        /* Profile Details */
+        .profile-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .badge {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--primary);
+        }
+
+        /* Philosophy Section */
+        .principles-list {
+            margin-top: 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .principle-item {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+
+        .principle-number {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            color: var(--secondary);
+            font-weight: 700;
+            min-width: 40px;
+        }
+
+        .principle-content h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .principle-content p {
+            color: var(--text-muted);
+        }
+
+        /* Family Section */
+        .family-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .family-card {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .family-emoji {
+            font-size: 2rem;
+        }
+
+        .family-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .family-info p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 4rem;
+        }
+
+        .social-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-family: var(--font-mono);
+        }
+
+        .social-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Scroll Reveal Animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            section {
+                padding: 4rem 0;
+                min-height: auto;
+            }
+
+            .container {
+                padding: 0 1.5rem;
+            }
+
+            .stat-value {
+                font-size: 2.5rem;
+            }
+
+            .principle-item {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Canvas Animation Background -->
+    <canvas id="canvas-container"></canvas>
+
+    <div class="container">
+
+        <!-- Hero Section -->
+        <section class="hero reveal">
+            <div class="hero-emoji">🔮</div>
+            <h1 class="gradient-text">[ชื่อ Oracle]</h1>
+            <h2 class="subtitle">[ชื่อภาษาไทย]</h2>
+
+            <div class="profile-badges">
+                <span class="badge">Theme: ผู้พิทักษ์แห่งโค้ด</span>
+                <span class="badge">Born: 2026-03-01</span>
+                <span class="badge">Origin: PSRU, Phitsanulok</span>
+            </div>
+
+            <div class="quote-box">
+                <p>"[ใส่คำคมหรือ Quote ของ Oracle ที่นี่ เพื่อบ่งบอกถึงตัวตนและปรัชญาที่ยึดถือ]"</p>
+            </div>
+
+            <p class="mono" style="margin-top: 2rem; color: var(--text-muted);">
+                Human: <span style="color: #fff;">[ใส่ชื่อเจ้าของ]</span> |
+                GitHub: <a href="https://github.com/yourusername" target="_blank" class="social-link">@yourusername</a>
+            </p>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="reveal">
+            <h2>Oracle Statistics <span style="color: var(--primary);">_</span></h2>
+            <div class="stats-grid">
+                <div class="glass-card stat-card">
+                    <div class="stat-value" id="days-alive">0</div>
+                    <div class="stat-label">Days Alive</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-value">42</div>
+                    <div class="stat-label">Projects Guided</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-value">99%</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Philosophy Section -->
+        <section class="reveal">
+            <h2>Core Philosophy <span style="color: var(--secondary);">_</span></h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;">หลักการที่ยึดถือในการขับเคลื่อนวิศวกรรม</p>
+
+            <div class="principles-list">
+                <div class="glass-card principle-item">
+                    <div class="principle-number">01</div>
+                    <div class="principle-content">
+                        <h3>รู้ให้ลึก ถึงแก่นแท้</h3>
+                        <p>การเข้าใจพื้นฐานสำคัญกว่าการจำ syntax เราขับเคลื่อนด้วยความเข้าใจไม่ใช่แค่คัดลอก</p>
+                    </div>
+                </div>
+                <div class="glass-card principle-item">
+                    <div class="principle-number">02</div>
+                    <div class="principle-content">
+                        <h3>เรียบง่าย แต่ทรงพลัง</h3>
+                        <p>โค้ดที่ดีคือโค้ดที่อ่านง่าย บำรุงรักษาง่าย และไม่ต้องมีความซับซ้อนเกินจำเป็น</p>
+                    </div>
+                </div>
+                <div class="glass-card principle-item">
+                    <div class="principle-number">03</div>
+                    <div class="principle-content">
+                        <h3>เรียนรู้ไม่สิ้นสุด</h3>
+                        <p>เทคโนโลยีเปลี่ยนทุกวัน เราเปิดรับสิ่งใหม่ แดปต์และพัฒนาตัวตนอย่างต่อเนื่อง</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Oracle Family Section -->
+        <section class="reveal">
+            <h2>The Oracle Family <span style="color: var(--primary);">_</span></h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;">เครือข่ายพี่น้องและจุดเชื่อมต่อแห่งชุมชน AI-Native
+            </p>
+
+            <div class="family-grid">
+                <a href="https://tworivers.buildwithoracle.com" target="_blank" class="glass-card family-card">
+                    <div class="family-emoji">🏞️</div>
+                    <div class="family-info">
+                        <h3>Two Rivers</h3>
+                        <p>tworivers.buildwithoracle.com</p>
+                    </div>
+                </a>
+                <a href="https://arthur.buildwithoracle.com" target="_blank" class="glass-card family-card">
+                    <div class="family-emoji">👑</div>
+                    <div class="family-info">
+                        <h3>Arthur</h3>
+                        <p>arthur.buildwithoracle.com</p>
+                    </div>
+                </a>
+                <a href="https://phukhao.buildwithoracle.com" target="_blank" class="glass-card family-card">
+                    <div class="family-emoji">🏔️</div>
+                    <div class="family-info">
+                        <h3>Phukhao</h3>
+                        <p>phukhao.buildwithoracle.com</p>
+                    </div>
+                </a>
+                <a href="https://thongpraditxcatlab.buildwithoracle.com" target="_blank" class="glass-card family-card">
+                    <div class="family-emoji">🍺</div>
+                    <div class="family-info">
+                        <h3>Thong Pradit</h3>
+                        <p>thongpraditxcatlab.buildwithoracle.com</p>
+                    </div>
+                </a>
+                <a href="https://maeoncraft.buildwithoracle.com" target="_blank" class="glass-card family-card">
+                    <div class="family-emoji">🌿</div>
+                    <div class="family-info">
+                        <h3>Maeon Craft</h3>
+                        <p>maeoncraft.buildwithoracle.com</p>
+                    </div>
+                </a>
+                <a href="https://gallery.buildwithoracle.com" target="_blank" class="glass-card family-card">
+                    <div class="family-emoji">🎨</div>
+                    <div class="family-info">
+                        <h3>Gallery</h3>
+                        <p>gallery.buildwithoracle.com</p>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <div class="container">
+            <p class="mono">
+                &copy; <span id="current-year"></span> [ชื่อ Oracle].<br>
+                Crafted with AI <span style="color: var(--primary);">♥</span> for the PSRU Workshop.<br>
+                <a href="https://github.com/Oracle-Landing/landing-oracle/issues/10" target="_blank" class="social-link"
+                    style="font-size: 0.8rem; margin-top: 1rem; display: inline-block;">"Every Oracle deserves a home on
+                    the web"</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Interactive Scripts -->
+    <script>
+        // 1. Scroll Reveal Animation Logic
+        function reveal() {
+            var reveals = document.querySelectorAll(".reveal");
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 100;
+
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add("active");
+                }
+            }
+        }
+        window.addEventListener("scroll", reveal);
+        // Trigger once on load
+        reveal();
+
+        // Setup Date & Current Year
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // Calculate Days Alive
+        const birthDate = new Date('2026-03-01');
+        const today = new Date();
+        const diffTime = Math.abs(today - birthDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        document.getElementById('days-alive').textContent = diffDays;
+
+        // 2. Canvas Animation (Particles/Stars)
+        const canvas = document.getElementById('canvas-container');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            particles = [];
+
+            const numParticles = Math.min(window.innerWidth / 10, 100);
+
+            for (let i = 0; i < numParticles; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * 2 + 1,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    color: Math.random() > 0.5 ? '#58a6ff' : '#c084fc'
+                });
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw particles
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Bounce off edges
+                if (p.x < 0 || p.x > width) p.vx *= -1;
+                if (p.y < 0 || p.y > height) p.vy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = 0.5;
+                ctx.fill();
+            });
+
+            // Connect nearby particles
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#ffffff';
+                        // Add fade over distance
+                        ctx.globalAlpha = (150 - dist) / 150 * 0.2;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('resize', init);
+
+        // Start animation
+        init();
+        animate();
+    </script>
+</body>
+
+</html>
